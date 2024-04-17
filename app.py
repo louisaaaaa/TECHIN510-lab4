@@ -22,11 +22,12 @@ con = psycopg2.connect(
 cur = con.cursor()
 
 
-def search_books(search_term, min_rating, max_price):
-    query = """SELECT * FROM books WHERE (title ILIKE %s OR description ILIKE %s) 
-               AND (CAST(rating AS FLOAT) BETWEEN %s AND 5)
-               AND (CAST(price AS FLOAT) <= %s)"""
-    cur.execute(query, ('%' + search_term + '%', '%' + search_term + '%', min_rating, max_price))
+def search_books(search_term, min_rating, max_rating, min_price, max_price):
+    query = """SELECT title, price, rating, description FROM books 
+               WHERE (title ILIKE %s OR description ILIKE %s) 
+               AND (CAST(rating AS FLOAT) BETWEEN %s AND %s)
+               AND (CAST(price AS FLOAT) BETWEEN %s AND %s)"""
+    cur.execute(query, ('%' + search_term + '%', '%' + search_term + '%', min_rating, max_rating, min_price, max_price))
     return cur.fetchall()
 
 
@@ -36,24 +37,34 @@ def main():
     # Search by name or description
     search_term = st.text_input("Search by name or description:")
     
-    # Filter by minimum rating
-    min_rating = st.slider("Minimum Rating", 0.0, 5.0, 0.0, 0.1)
+    # Filter by rating range
+    min_rating, max_rating = st.slider("Rating Range", 0, 5, (0, 5), 1)
     
-    # Filter by maximum price
-    max_price = st.slider("Maximum Price", 0.0, 1000.0, 1000.0, 1.0)
+    # Filter by price range
+    min_price, max_price = st.slider("Price Range", 0, 100, (0, 100), 1)
     
     # Retrieve and display books based on search and filters
-    books = search_books(search_term, min_rating, max_price)
+    books = search_books(search_term, min_rating, max_rating, min_price, max_price)
+    st.write("### See serach result below book description section!")
     if books:
+        # Allow user to select a book for more details
+        selected_book_index = st.selectbox("Use ID to select a book for detailed description:", range(len(books)))
+        selected_book = books[selected_book_index]
+        st.write("### Book Description:")
+        # Display description of the selected book
+        st.write(f"Description: {selected_book[3]}")
+        
         st.write("### Search Results:")
-        for book in books:
-            st.write(f"Title: {book[0]}")
-            st.write(f"Description: {book[1]}")
-            st.write(f"Price: £{book[2]}")
-            st.write(f"Rating: {book[3]}")
-            st.write("---")
+        # Display search results in a table with column names
+        table_data = [[book[0], f"${book[1]}", book[2]] for book in books]
+        st.table(data=table_data)
+        
+        
     else:
         st.write("No books found matching the search criteria.")
+
+
+
 
 
 if __name__ == "__main__":
